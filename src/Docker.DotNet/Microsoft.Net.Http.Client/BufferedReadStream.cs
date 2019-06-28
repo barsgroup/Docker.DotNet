@@ -5,9 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-#if !NET45
 using System.Buffers;
-#endif
 
 namespace Microsoft.Net.Http.Client
 {
@@ -36,12 +34,8 @@ namespace Microsoft.Net.Http.Client
             }
             _inner = inner;
             _socket = socket;
-#if !NET45
             _bufferRefCount = 1;
             _buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
-#else
-            _buffer = new byte[bufferLength];
-#endif
         }
 
         public override bool CanRead
@@ -93,12 +87,10 @@ namespace Microsoft.Net.Http.Client
                 if (disposing)
                 {
                     _inner.Dispose();
-#if !NET45
                     if (Interlocked.Decrement(ref _bufferRefCount) == 0)
                     {
                         ArrayPool<byte>.Shared.Return(_buffer);
                     }
-#endif
                 }
             }
         }
@@ -164,7 +156,6 @@ namespace Microsoft.Net.Http.Client
             if (_bufferCount == 0)
             {
                 _bufferOffset = 0;
-#if !NET45
                 bool validBuffer = Interlocked.Increment(ref _bufferRefCount) > 1;
                 try
                 {
@@ -180,9 +171,6 @@ namespace Microsoft.Net.Http.Client
                         ArrayPool<byte>.Shared.Return(_buffer);
                     }
                 }
-#else
-                _bufferCount = await _inner.ReadAsync(_buffer, _bufferOffset, _buffer.Length, cancel).ConfigureAwait(false);
-#endif
                 if (_bufferCount == 0)
                 {
                     throw new IOException("Unexpected end of stream");
